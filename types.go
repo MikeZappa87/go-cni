@@ -63,3 +63,7 @@ type DNS struct {
 	// List of DNS options.
 	Options []string
 }
+
+type DAD struct {
+	Disable bool
+}

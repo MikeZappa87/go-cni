@@ -42,6 +42,13 @@ func WithCapabilityBandWidth(bandWidth BandWidth) NamespaceOpts {
 	}
 }
 
+func WithCapabilityDAD(dad DAD) NamespaceOpts {
+	return func(c *Namespace) error {
+		c.capabilityArgs["disabledad"] = dad
+		return nil
+	}
+}
+
 // WithCapabilityDNS adds support for dns
 func WithCapabilityDNS(dns DNS) NamespaceOpts {
 	return func(c *Namespace) error {
