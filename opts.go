@@ -17,9 +17,9 @@
 package cni
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -315,35 +315,9 @@ func loadFromConfDir(c *libcni, max int) error {
 }
 
 func checkPluginExists(c *libcni, confList *cnilibrary.NetworkConfigList) error {
-	missing := make(map[string]interface{})
-	for _, plug := range confList.Plugins {
-		plugin := plug.Network.Type
-		for _, dir := range c.pluginDirs {
-			if !fileExistsInDir(dir, plugin) {
-				missing[plugin] = plugin
-			} else {
-				delete(missing, plugin)
-				break
-			}
-		}
-	}
-
-	if len(missing) > 0 {
-		var plugins []string
-		for k := range missing {
-			plugins = append(plugins, k)
-		}
-
-		return fmt.Errorf("unable to find cni plugins %s in directories %s: %v",
-			strings.Join(plugins, ", "), strings.Join(c.pluginDirs, ", "), ErrCNIPluginNotFound)
+	if _, err := c.cniConfig.ValidateNetworkList(context.TODO(), confList); err != nil {
+		return err
 	}
 
 	return nil
-}
-
-// FileExistsInDir checks if a file exists in a specific directory
-func fileExistsInDir(directory, filename string) bool {
-	filePath := filepath.Join(directory, filename)
-	_, err := os.Stat(filePath)
-	return !os.IsExist(err)
 }

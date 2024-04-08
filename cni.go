@@ -140,6 +140,13 @@ func (c *libcni) Status() error {
 	if len(c.networks) < c.networkCount {
 		return ErrCNINotInitialized
 	}
+
+	for _, v := range c.networks {
+		if _, err := v.cni.ValidateNetworkList(context.TODO(), v.config); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
