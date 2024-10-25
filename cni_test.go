@@ -18,6 +18,7 @@ package cni
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 
@@ -378,6 +379,30 @@ func TestLibCNIType120(t *testing.T) {
 
 	err = l.Remove(ctx, "container-id1", "/proc/12345/ns/net")
 	assert.NoError(t, err)
+}
+
+func TestLibCNIType120FailStatus(t *testing.T) {
+	// Get the default CNI config
+	l := defaultCNIConfig()
+	// Create a fake cni config directory and file
+	cniDir, confDir := buildFakeConfig(t)
+	defer tearDownCNIConfig(t, cniDir)
+	l.pluginConfDir = confDir
+	// Set the minimum network count as 2 for this test
+	l.networkCount = 2
+	err := l.Load(WithLoNetwork, WithDefaultConf)
+	assert.NoError(t, err)
+
+	mockCNI := &MockCNI{}
+	l.cniConfig = mockCNI
+	l.networks[0].cni = mockCNI
+	l.networks[1].cni = mockCNI
+
+	mockCNI.On("GetStatusNetworkList", l.networks[0].config).Return(nil)
+	mockCNI.On("GetStatusNetworkList", l.networks[1].config).Return(errors.New("no ip addresses"))
+	l.cniConfig = mockCNI
+	err = l.Status()
+	assert.Error(t, err)
 }
 
 type MockCNI struct {
