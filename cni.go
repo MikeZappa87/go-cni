@@ -137,8 +137,8 @@ func (c *libcni) Load(opts ...Opt) error {
 func (c *libcni) Status() error {
 	c.RLock()
 	defer c.RUnlock()
-	if err := c.ready(); err != nil {
-		return err
+	if len(c.networks) < c.networkCount {
+		return ErrCNINotInitialized
 	}
 
 	// STATUS is only called for CNI Version 1.1.0 or greater. It is ignored for previous versions.
@@ -163,8 +163,10 @@ func (c *libcni) Networks() []*Network {
 
 // Setup setups the network in the namespace and returns a Result
 func (c *libcni) Setup(ctx context.Context, id string, path string, opts ...NamespaceOpts) (*Result, error) {
-	if err := c.ready(); err != nil {
-		return nil, err
+	c.Lock()
+	defer c.Unlock()
+	if len(c.networks) < c.networkCount {
+		return nil, ErrCNINotInitialized
 	}
 	ns, err := newNamespace(id, path, opts...)
 	if err != nil {
@@ -179,8 +181,10 @@ func (c *libcni) Setup(ctx context.Context, id string, path string, opts ...Name
 
 // SetupSerially setups the network in the namespace and returns a Result
 func (c *libcni) SetupSerially(ctx context.Context, id string, path string, opts ...NamespaceOpts) (*Result, error) {
-	if err := c.ready(); err != nil {
-		return nil, err
+	c.Lock()
+	defer c.Unlock()
+	if len(c.networks) < c.networkCount {
+		return nil, ErrCNINotInitialized
 	}
 	ns, err := newNamespace(id, path, opts...)
 	if err != nil {
@@ -242,8 +246,10 @@ func (c *libcni) attachNetworks(ctx context.Context, ns *Namespace) ([]*types100
 
 // Remove removes the network config from the namespace
 func (c *libcni) Remove(ctx context.Context, id string, path string, opts ...NamespaceOpts) error {
-	if err := c.ready(); err != nil {
-		return err
+	c.Lock()
+	defer c.Unlock()
+	if len(c.networks) < c.networkCount {
+		return ErrCNINotInitialized
 	}
 	ns, err := newNamespace(id, path, opts...)
 	if err != nil {
@@ -270,8 +276,10 @@ func (c *libcni) Remove(ctx context.Context, id string, path string, opts ...Nam
 
 // Check checks if the network is still in desired state
 func (c *libcni) Check(ctx context.Context, id string, path string, opts ...NamespaceOpts) error {
-	if err := c.ready(); err != nil {
-		return err
+	c.RLock()
+	defer c.RUnlock()
+	if len(c.networks) < c.networkCount {
+		return ErrCNINotInitialized
 	}
 	ns, err := newNamespace(id, path, opts...)
 	if err != nil {
@@ -319,14 +327,4 @@ func (c *libcni) GetConfig() *ConfigResult {
 
 func (c *libcni) reset() {
 	c.networks = nil
-}
-
-func (c *libcni) ready() error {
-	c.RLock()
-	defer c.RUnlock()
-	if len(c.networks) < c.networkCount {
-		return ErrCNINotInitialized
-	}
-
-	return nil
 }
